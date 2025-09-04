@@ -6,9 +6,8 @@ Practicing tabu search on TSP
 
 - `csp_tabu.cpp` — Tabu Search for TSP
 - `extract_matrix.py` — Extracts distance matrices from .tsp files
-- `input.txt` — Example input file for a single TSP instance
 - `txt_folder/` — Folder containing converted TSP instance files in .txt format and distance matrix
-- `tsp_data_folder/` — Folder containing original .tsp files in coordinates form
+- `tsp_data_folder/` — Folder containing original .tsp files in coordinates form or matrix form
 - `tabu_results.txt` — Aggregated results from Tabu Search runs
 
 ## Method
