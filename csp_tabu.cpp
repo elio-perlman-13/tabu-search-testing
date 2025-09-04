@@ -1,4 +1,7 @@
 #include <bits/stdc++.h>
+#include <omp.h>
+#include <chrono>
+
 #define ll long long
 #define pb push_back
 #define mp make_pair
@@ -11,13 +14,15 @@
 #define RFOR(i,a,b) for(int i=a-1;i>=b;i--)
 using namespace std;
 
-int n, distance_matrix[100][100];
+int n;
+int distance_matrix[1000][1000];
 vi solution;
 set<pii> tabu_list; 
 
-const int TABU_TENURE = 10;
+const int TABU_TENURE = 15;
 const int INF = 1e9;
-const int MAX_ITERATIONS = 1000;
+const int MAX_ITERATIONS = 5000;
+const int NEIGHBOR_SAMPLE_SIZE = 500;
 
 void input(){
     cin >> n;
@@ -28,6 +33,28 @@ void input(){
     }
 }
 
+// difference in cost after swapping cities at positions i and j
+int incremental_cost(const vi& sol, int i, int j, int current_cost) {
+    int n = sol.size();
+    int delta = 0;
+
+    int a = sol[i];
+    int b = sol[j];
+    int a_next = sol[(i + 1) % n];
+    int b_next = sol[(j + 1) % n];
+
+    // Remove old edges
+    delta -= distance_matrix[a][a_next];
+    delta -= distance_matrix[b][b_next];
+
+    // Add new edges
+    delta += distance_matrix[a][b];
+    delta += distance_matrix[a_next][b_next];
+
+    return current_cost + delta;
+}
+
+// calculate total cost of a solution
 int calculate_cost(const vi& sol) {
     int cost = 0;
     FOR(i, 0, n - 1) {
@@ -37,25 +64,24 @@ int calculate_cost(const vi& sol) {
     return cost;
 }
 
-vi generate_initial_solution() {
-    vi sol(n);
-    iota(sol.begin(), sol.end(), 0);
-    random_shuffle(sol.begin(), sol.end());
-    return sol;
-}
-
-vvi get_neighbors(const vi& sol) {
-    vvi neighbors;
-    FOR(i, 0, n) {
-        FOR(j, i + 1, n) {
-            if (tabu_list.find({sol[i], sol[j]}) == tabu_list.end()) {
-                vi neighbor = sol;
-                swap(neighbor[i], neighbor[j]);
-                neighbors.pb(neighbor);
+// generate a random initial solution
+vi generate_greedy_solution() {
+    vi sol(n, -1);
+    vector<bool> visited(n, false);
+    sol[0] = rand() % n;
+    visited[sol[0]] = true;
+    for (int i = 1; i < n; ++i) {
+        int last = sol[i-1], next = -1, min_dist = INF;
+        for (int j = 0; j < n; ++j) {
+            if (!visited[j] && distance_matrix[last][j] < min_dist) {
+                min_dist = distance_matrix[last][j];
+                next = j;
             }
         }
+        sol[i] = next;
+        visited[next] = true;
     }
-    return neighbors;
+    return sol;
 }
 
 void update_tabu_list(const pii& move) {
@@ -66,21 +92,32 @@ void update_tabu_list(const pii& move) {
 }
 
 int tabu_search(const int max_iterations) {
-    solution = generate_initial_solution();
+    solution = generate_greedy_solution();
     int best_cost = calculate_cost(solution);
     vi best_solution = solution;
 
     int iterations = max_iterations;
     while (iterations--) {
-        vvi neighbors = get_neighbors(solution);
+        int current_cost = calculate_cost(solution);
         int best_neighbor_cost = INT_MAX;
         vi best_neighbor;
+        int n = solution.size();
 
-        for (const auto& neighbor : neighbors) {
-            int cost = calculate_cost(neighbor);
-            if (cost < best_neighbor_cost) {
-                best_neighbor_cost = cost;
-                best_neighbor = neighbor;
+        for (int k = 0; k < NEIGHBOR_SAMPLE_SIZE; ++k) {
+            int i = rand() % n;
+            int j = rand() % n;
+            if (i == j) continue;
+            vi neighbor = solution;
+            swap(neighbor[i], neighbor[j]);
+            pii move = {i, j};
+            bool is_tabu = tabu_list.find(move) != tabu_list.end();
+            int cost = incremental_cost(solution, i, j, current_cost);
+
+            if (!is_tabu || (is_tabu && cost < best_cost)) {
+                if (cost < best_neighbor_cost) {
+                    best_neighbor_cost = cost;
+                    best_neighbor = neighbor;
+                }
             }
         }
 
@@ -102,18 +139,30 @@ int tabu_search(const int max_iterations) {
 
 
 void output(){
-    int best_cost = tabu_search(MAX_ITERATIONS);
-    cout << "Best Cost: " << best_cost << "\n";
-    cout << "Best Solution: ";
-    for (int city : solution) {
-        cout << city << " ";
+    input();
+    int global_best_cost = INF;
+    vi global_best_solution;
+    int NUM_RESTARTS = 10;
+
+    for (int restart = 0; restart < NUM_RESTARTS; ++restart) {
+        solution = generate_greedy_solution(); // or generate_greedy_solution()
+        int cost = tabu_search(MAX_ITERATIONS);
+        if (cost < global_best_cost) {
+            global_best_cost = cost;
+            global_best_solution = solution;
+        }
     }
-    cout << "\n";
+
+    solution = global_best_solution;
+    cout << "Best Cost: " << global_best_cost << endl;
+    cout << "Best Solution: ";
+    for (int city : solution) cout << city << " ";
+    cout << endl;
 }
 
 int main() {
-    freopen("input.txt", "r", stdin);
-    freopen("output.txt", "w", stdout);
+    freopen("input_a280.txt", "r", stdin);
+    freopen("output_tabo_tsp.txt", "w", stdout);
     input();
      auto start = std::chrono::high_resolution_clock::now();
     output();

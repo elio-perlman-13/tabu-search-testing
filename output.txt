@@ -1,3 +1,0 @@
-Best Cost: 263
-Best Solution: 5 3 4 0 8 7 2 1 6 9 
-Elapsed Time: 0.0266618 seconds
